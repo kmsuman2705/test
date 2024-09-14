@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Raksha Alert">
+    <meta name="author" content="Author">
+    <title>Raksha Alert</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/alertlogo.jpg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}">
+    <link href="{{ url_for('static', filename='vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/osahan.css') }}">
+    <style>
+        #face-list {
+            margin-top: 20px;
+        }
+        .face-item {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body id="page-top">
+    <div id="wrapper">
+        <div id="content-wrapper">
+            <div class="container-fluid pb-0">
+                <div class="video-block section-padding1">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="single-video-left">
+                                <div class="single-video">
+                                    <video id="video" width="100%" height="auto" autoplay></video>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="face-list">
+                    <!-- Faces will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                const videoElement = document.getElementById('video');
+                videoElement.srcObject = stream;
+
+                // Function to capture frame and send to server
+                function captureFrame() {
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    const video = document.getElementById('video');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    canvas.toBlob(function(blob) {
+                        const formData = new FormData();
+                        formData.append('frame', blob, 'frame.jpg');
+
+                        fetch('/upload_frame', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Faces:', data.faces); // For debugging
+                            updateFaceList(data.faces);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        });
+                    }, 'image/jpeg');
+                }
+
+                // Function to update face list on the page
+                function updateFaceList(faces) {
+                    const faceListElement = document.getElementById('face-list');
+                    faceListElement.innerHTML = ''; // Clear the list
+
+                    if (faces.length === 0) {
+                        faceListElement.innerHTML = '<div class="face-item">No faces detected</div>';
+                    } else {
+                        faces.forEach(face => {
+                            const item = document.createElement('div');
+                            item.className = 'face-item';
+                            item.textContent = face;
+                            faceListElement.appendChild(item);
+                        });
+                    }
+                }
+
+                // Capture frame every 3 seconds
+                setInterval(captureFrame, 3000);
+            })
+            .catch(function(error) {
+                console.error("Error accessing the camera: ", error);
+            });
+        });
+    </script>
+</body>
+</html>
